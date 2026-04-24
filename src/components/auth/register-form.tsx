@@ -4,15 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Mail, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
 import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 
-import { registerAction } from "@/lib/auth/actions";
-import type { AuthApiResponse, AuthFieldErrors } from "@/lib/auth/contracts";
-import {
-  registerFormSchema,
-  type RegisterFormValues,
-} from "@/lib/validation/auth";
 import { PasswordField } from "@/components/auth/password-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,7 +18,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -32,6 +31,12 @@ import {
 } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { registerAction } from "@/lib/auth/actions";
+import type { AuthApiResponse, AuthFieldErrors } from "@/lib/auth/contracts";
+import {
+  registerFormSchema,
+  type RegisterFormValues,
+} from "@/lib/validation/auth";
 
 function applyFieldErrors(
   setError: ReturnType<typeof useForm<RegisterFormValues>>["setError"],
@@ -103,7 +108,9 @@ export function RegisterForm() {
     <Card>
       <CardHeader>
         <CardTitle>Create account</CardTitle>
-        <CardDescription>Enter your details to create your account.</CardDescription>
+        <CardDescription>
+          Enter your details to create your account.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -124,7 +131,9 @@ export function RegisterForm() {
               name="firstName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="register-first-name">First name</FieldLabel>
+                  <FieldLabel htmlFor="register-first-name">
+                    First name
+                  </FieldLabel>
                   <InputGroup>
                     <InputGroupAddon>
                       <UserRound />
@@ -148,7 +157,9 @@ export function RegisterForm() {
               name="lastName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="register-last-name">Last name</FieldLabel>
+                  <FieldLabel htmlFor="register-last-name">
+                    Last name
+                  </FieldLabel>
                   <InputGroup>
                     <InputGroupAddon>
                       <UserRound />
@@ -224,7 +235,9 @@ export function RegisterForm() {
             />
           </FieldGroup>
           <Button disabled={form.formState.isSubmitting} type="submit">
-            {form.formState.isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            {form.formState.isSubmitting ? (
+              <Spinner data-icon="inline-start" />
+            ) : null}
             Create account
           </Button>
         </form>
@@ -233,7 +246,10 @@ export function RegisterForm() {
         <Separator />
         <p className="text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link className="font-medium text-foreground underline underline-offset-4" href="/login">
+          <Link
+            className="font-medium text-foreground underline underline-offset-4"
+            href="/login"
+          >
             Sign in
           </Link>
           .

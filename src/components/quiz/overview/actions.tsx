@@ -20,6 +20,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import { updateQuizPublicAction } from "@/lib/quiz/generation/actions";
 
 type QuizOverviewActionsProps = {
@@ -72,7 +73,7 @@ export function QuizOverviewActions({
   }
 
   return (
-    <section className="bg-secondary flex flex-col gap-3 rounded-4xl p-3">
+    <Surface className="flex flex-col gap-3">
       <Button asChild>
         <Link href={solveHref}>
           <Play data-icon="inline-start" />
@@ -91,19 +92,21 @@ export function QuizOverviewActions({
           Attempts
         </Link>
       </Button>
-      <Field orientation="horizontal" className="bg-background rounded-2xl p-3">
-        <Checkbox
-          checked={isPublic}
-          disabled={isUpdating}
-          onCheckedChange={(value) => updatePublic(value === true)}
-        />
-        <FieldContent>
-          <FieldLabel>Public sharing</FieldLabel>
-          <FieldDescription>
-            Allow anyone with the link to attempt this quiz.
-          </FieldDescription>
-        </FieldContent>
-      </Field>
+      <SurfaceInset>
+        <Field orientation="horizontal">
+          <Checkbox
+            checked={isPublic}
+            disabled={isUpdating}
+            onCheckedChange={(value) => updatePublic(value === true)}
+          />
+          <FieldContent>
+            <FieldLabel>Public sharing</FieldLabel>
+            <FieldDescription>
+              Allow anyone with the link to attempt this quiz.
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      </SurfaceInset>
       {isPublic ? (
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
@@ -128,6 +131,6 @@ export function QuizOverviewActions({
       ) : error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : null}
-    </section>
+    </Surface>
   );
 }

@@ -1,5 +1,6 @@
 import { Loader2, Sparkles } from "lucide-react";
 
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import type { QuizAttemptRecord } from "@/lib/quiz/preview";
 import { cn } from "@/lib/utils";
 
@@ -75,9 +76,9 @@ export function AttemptSummary({
       : Math.round((attempt.earnedPoints / attempt.maxPoints) * 100);
 
   return (
-    <section className="bg-secondary rounded-4xl flex flex-col gap-3 p-3">
-      <div className="bg-background flex flex-col gap-2 rounded-2xl px-5 py-4">
-        <div className="text-lg font-medium flex items-center gap-2">
+    <Surface className="flex flex-col gap-3">
+      <SurfaceInset className="flex flex-col gap-2 px-5 py-4">
+        <div className="text-base font-medium flex items-center gap-2">
           {attempt.status === "grading" && (
             <Loader2 className="animate-spin size-4" />
           )}
@@ -106,11 +107,11 @@ export function AttemptSummary({
             Submitted {new Date(attempt.createdAt).toLocaleString()}
           </p>
         </div>
-      </div>
+      </SurfaceInset>
 
-      <div className="bg-background flex flex-col gap-2 rounded-2xl px-5 py-4">
+      <SurfaceInset className="flex flex-col gap-2 px-5 py-4">
         <SuggestionsPanel attempt={attempt} scoreFinal={scoreFinal} />
-      </div>
-    </section>
+      </SurfaceInset>
+    </Surface>
   );
 }

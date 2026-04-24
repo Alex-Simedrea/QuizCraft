@@ -7,12 +7,25 @@ import {
   ListEnd,
   Plus,
   Settings,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 import { LogoutMenuItem } from "@/components/dashboard/logout-menu-item";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -32,11 +45,13 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import { deleteQuizAction } from "@/lib/quiz/generation/actions";
 import type { QuizStatus } from "@/lib/quiz/preview";
 
 export type SidebarQuizItem = {
@@ -58,6 +73,63 @@ type AppSidebarProps = {
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+function DeleteQuizSidebarAction({ quiz }: { quiz: SidebarQuizItem }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isDeleting, startDeleting] = useTransition();
+
+  function deleteQuiz() {
+    startDeleting(() => {
+      void deleteQuizAction(quiz.id).then((result) => {
+        if (!result.success) {
+          window.alert(result.message);
+          return;
+        }
+
+        if (pathname.startsWith(`/quiz/${quiz.id}`)) {
+          router.push("/dashboard");
+        }
+
+        router.refresh();
+      });
+    });
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <SidebarMenuAction
+          aria-label={`Delete ${quiz.title}`}
+          disabled={isDeleting}
+          showOnHover
+          type="button"
+        >
+          <Trash2 />
+        </SidebarMenuAction>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete quiz?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete “{quiz.title}” and all of its quiz
+            data, attempts, and edit-agent chats.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isDeleting}
+            onClick={deleteQuiz}
+            variant="destructive"
+          >
+            Delete quiz
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export function AppSidebar({ quizzes, user }: AppSidebarProps) {
@@ -102,6 +174,7 @@ export function AppSidebar({ quizzes, user }: AppSidebarProps) {
                         </span>
                       </Link>
                     </SidebarMenuButton>
+                    <DeleteQuizSidebarAction quiz={quiz} />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

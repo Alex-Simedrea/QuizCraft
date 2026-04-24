@@ -281,6 +281,15 @@ export type CopyPublicQuizResult =
       message: string;
     };
 
+export type DeleteQuizResult =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      message: string;
+    };
+
 export const QUIZ_GENERATION_CHANNEL = "quiz_generation_jobs";
 export const QUIZ_GENERATION_RECONCILE_INTERVAL_MS = 30_000;
 
@@ -1535,6 +1544,29 @@ export async function copyPublicQuizForUser(
   return {
     success: true,
     quizId: copiedQuiz.id,
+  };
+}
+
+export async function deleteQuizForUser(
+  quizId: string,
+  userId: string,
+): Promise<DeleteQuizResult> {
+  const [deletedQuiz] = await db
+    .delete(quizzes)
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)))
+    .returning({
+      id: quizzes.id,
+    });
+
+  if (!deletedQuiz) {
+    return {
+      success: false,
+      message: "Quiz not found.",
+    };
+  }
+
+  return {
+    success: true,
   };
 }
 

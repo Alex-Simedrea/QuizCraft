@@ -4,12 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
 import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 
-import { loginAction } from "@/lib/auth/actions";
-import type { AuthApiResponse, AuthFieldErrors } from "@/lib/auth/contracts";
-import { loginFormSchema, type LoginFormValues } from "@/lib/validation/auth";
+import { PasswordField } from "@/components/auth/password-field";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,16 +18,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { PasswordField } from "@/components/auth/password-field";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { loginAction } from "@/lib/auth/actions";
+import type { AuthApiResponse, AuthFieldErrors } from "@/lib/auth/contracts";
+import { loginFormSchema, type LoginFormValues } from "@/lib/validation/auth";
 
 type LoginFormProps = {
   nextPath?: string;
@@ -93,7 +98,9 @@ export function LoginForm({ nextPath }: LoginFormProps) {
     <Card>
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
-        <CardDescription>Enter your email and password to continue.</CardDescription>
+        <CardDescription>
+          Enter your email and password to continue.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -152,7 +159,9 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             />
           </FieldGroup>
           <Button disabled={form.formState.isSubmitting} type="submit">
-            {form.formState.isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            {form.formState.isSubmitting ? (
+              <Spinner data-icon="inline-start" />
+            ) : null}
             Sign in
           </Button>
         </form>
@@ -161,7 +170,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         <Separator />
         <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link className="font-medium text-foreground underline underline-offset-4" href="/register">
+          <Link
+            className="font-medium text-foreground underline underline-offset-4"
+            href="/register"
+          >
             Create an account
           </Link>
           .

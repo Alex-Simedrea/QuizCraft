@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SurfaceInset } from "@/components/ui/surface";
 import { Textarea } from "@/components/ui/textarea";
 import type { QuestionDifficulty, QuestionType } from "@/lib/quiz/draft";
 import { QUESTION_DIFFICULTIES, QUESTION_TYPES } from "@/lib/quiz/draft";
@@ -283,9 +284,9 @@ export function SortableQuestionEditor({
   }
 
   return (
-    <div
+    <SurfaceInset
       className={cn(
-        "bg-background flex flex-col gap-4 rounded-2xl p-3",
+        "flex flex-col gap-4",
         isDragSource && "ring-ring opacity-60 ring-1",
       )}
       ref={ref}
@@ -390,6 +391,6 @@ export function SortableQuestionEditor({
           value={question.explanation}
         />
       </Field>
-    </div>
+    </SurfaceInset>
   );
 }

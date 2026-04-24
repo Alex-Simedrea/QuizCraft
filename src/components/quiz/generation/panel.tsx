@@ -4,6 +4,7 @@ import { CheckCircle2, LoaderCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import {
   getGenerationLabel,
   type QuizGenerationChunk,
@@ -27,8 +28,8 @@ export function QuizGenerationPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-secondary flex flex-col gap-3 rounded-4xl p-3">
-        <div className="bg-background flex flex-col gap-3 rounded-2xl px-5 py-5">
+      <Surface className="flex flex-col gap-3">
+        <SurfaceInset className="flex flex-col gap-3 px-5 py-5">
           <h2 className="text-lg font-semibold">Generating quiz</h2>
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-3 text-sm">
@@ -40,16 +41,13 @@ export function QuizGenerationPanel({
             </div>
             <Progress value={progressValue} />
           </div>
-        </div>
+        </SurfaceInset>
         {chunks.map((chunk) => {
           const isDone = completedChunkIds.has(chunk.id);
           const isCurrent = currentChunkId === chunk.id;
 
           return (
-            <div
-              className="bg-background flex gap-3 rounded-2xl px-5 py-5"
-              key={chunk.id}
-            >
+            <SurfaceInset className="flex gap-3 px-5 py-5" key={chunk.id}>
               <div className="flex size-9 items-center justify-center rounded-full bg-muted">
                 {isDone ? (
                   <CheckCircle2 className="text-primary" />
@@ -70,10 +68,10 @@ export function QuizGenerationPanel({
                   {getGenerationLabel(chunk)}
                 </p>
               </div>
-            </div>
+            </SurfaceInset>
           );
         })}
-      </section>
+      </Surface>
     </div>
   );
 }

@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function ProfilePage() {
   return (
@@ -7,8 +13,8 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle>Profile</CardTitle>
           <CardDescription>
-            This page is stubbed so the dashboard footer menu is fully wired. We can add editable
-            account details in a later slice.
+            This page is stubbed so the dashboard footer menu is fully wired. We
+            can add editable account details in a later slice.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">

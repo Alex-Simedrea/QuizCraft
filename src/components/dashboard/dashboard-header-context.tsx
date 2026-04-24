@@ -13,6 +13,7 @@ export type DashboardHeaderConfig = {
   actions?: ReactNode;
   backButton?: boolean | { disabled?: boolean; label?: string };
   title?: string;
+  titleAlign?: "center" | "left";
   titlePrefix?: ReactNode;
 };
 

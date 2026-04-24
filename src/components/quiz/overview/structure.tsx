@@ -1,5 +1,6 @@
 import { ExternalLink, FileText } from "lucide-react";
 
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import {
   type QuizDraftSnapshot,
   type QuizStoredResource,
@@ -14,12 +15,12 @@ type QuizStructureProps = {
 
 function QuizPrompt({ prompt }: { prompt: string }) {
   return (
-    <section className="bg-secondary flex flex-col gap-2 rounded-4xl p-3">
+    <Surface className="flex flex-col gap-2">
       <h2 className="text-lg font-semibold">Prompt</h2>
-      <div className="bg-background rounded-2xl px-5 py-5">
+      <SurfaceInset className="px-5 py-5">
         <p className="text-muted-foreground text-sm">{prompt}</p>
-      </div>
-    </section>
+      </SurfaceInset>
+    </Surface>
   );
 }
 
@@ -35,7 +36,7 @@ function QuizResources({
   }
 
   return (
-    <section className="bg-secondary w-1/3 rounded-4xl p-3 max-xl:w-full">
+    <Surface className="w-1/3 max-xl:w-full">
       <div className="flex flex-col gap-3">
         {resources.map((resource, resourceIndex) => {
           const resourceHref = `/api/quizzes/${quizId}/resources/${resourceIndex}`;
@@ -70,7 +71,7 @@ function QuizResources({
           );
         })}
       </div>
-    </section>
+    </Surface>
   );
 }
 
@@ -118,12 +119,9 @@ function QuizSectionPlan({
   sections: QuizDraftSnapshot["sections"];
 }) {
   return (
-    <div className="bg-secondary flex w-full flex-col gap-3 rounded-4xl p-3">
+    <Surface className="flex w-full flex-col gap-3">
       {sections.map((section, sectionIndex) => (
-        <section
-          className="bg-background flex flex-col gap-1 rounded-2xl p-3"
-          key={section.id}
-        >
+        <SurfaceInset className="flex flex-col gap-1" key={section.id}>
           <div className="px-1 py-1">
             <p className="text-base font-medium">
               {section.name || `Section ${sectionIndex + 1}`}
@@ -148,9 +146,9 @@ function QuizSectionPlan({
               </div>
             ))}
           </div>
-        </section>
+        </SurfaceInset>
       ))}
-    </div>
+    </Surface>
   );
 }
 

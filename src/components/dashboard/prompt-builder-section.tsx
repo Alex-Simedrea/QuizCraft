@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SurfaceInset } from "@/components/ui/surface";
 import type {
   QuestionDifficulty,
   QuestionDraft,
@@ -56,7 +57,7 @@ export function PromptBuilderSection({
   onUpdateQuestion,
 }: PromptBuilderSectionProps) {
   return (
-    <section className="flex flex-col gap-1 rounded-3xl bg-background p-3">
+    <SurfaceInset className="flex flex-col gap-1">
       <div className="flex items-end gap-3">
         <Field className="flex-1">
           <Input
@@ -159,6 +160,6 @@ export function PromptBuilderSection({
         <CopyPlus data-icon="inline-start" />
         Add question group
       </Button>
-    </section>
+    </SurfaceInset>
   );
 }

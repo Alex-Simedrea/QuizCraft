@@ -37,6 +37,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Surface } from "@/components/ui/surface";
 import type { QuizEditAgentReference } from "@/lib/quiz/edit-agent/types";
 import { updateQuizContentAction } from "@/lib/quiz/generation/actions";
 import type { QuizRecord } from "@/lib/quiz/preview";
@@ -423,6 +424,7 @@ export function QuizEditWorkspace({ initialQuiz }: QuizEditWorkspaceProps) {
       actions: headerActions,
       backButton: { label: "Back to quiz" },
       title: "Edit quiz",
+      titleAlign: "left" as const,
     }),
     [headerActions],
   );
@@ -439,7 +441,7 @@ export function QuizEditWorkspace({ initialQuiz }: QuizEditWorkspaceProps) {
       <div className="lg:pr-[24rem]">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 pt-20 md:p-8 md:pt-20 lg:p-10 lg:pt-20">
           <div className="flex min-w-0 flex-col gap-4">
-            <section className="bg-secondary flex items-end gap-3 rounded-4xl p-3">
+            <Surface className="flex items-end gap-3">
               <Field>
                 <FieldLabel>Quiz title</FieldLabel>
                 <Input
@@ -448,7 +450,7 @@ export function QuizEditWorkspace({ initialQuiz }: QuizEditWorkspaceProps) {
                   value={title}
                 />
               </Field>
-            </section>
+            </Surface>
 
             {saveError ? (
               <SaveError

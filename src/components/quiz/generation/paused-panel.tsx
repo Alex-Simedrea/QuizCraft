@@ -1,6 +1,7 @@
 import { AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 
 type QuizGenerationPausedPanelProps = {
   errorMessage: string | null;
@@ -14,8 +15,8 @@ export function QuizGenerationPausedPanel({
   onRetry,
 }: QuizGenerationPausedPanelProps) {
   return (
-    <section className="bg-secondary rounded-4xl p-3">
-      <div className="bg-background rounded-2xl px-5 p-3 flex flex-col gap-4">
+    <Surface>
+      <SurfaceInset className="flex flex-col gap-4 px-5">
         <h2 className="text-lg font-semibold">Generation paused</h2>
         <div className="bg-secondary flex items-start gap-3 rounded-3xl px-4 py-4">
           <div className="flex size-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
@@ -35,7 +36,7 @@ export function QuizGenerationPausedPanel({
             Resume generation
           </Button>
         </div>
-      </div>
-    </section>
+      </SurfaceInset>
+    </Surface>
   );
 }

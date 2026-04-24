@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function SettingsPage() {
   return (
@@ -7,8 +13,8 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Settings</CardTitle>
           <CardDescription>
-            This page is stubbed so the footer dropdown has a real destination. We can add quiz,
-            account, and app-level preferences here later.
+            This page is stubbed so the footer dropdown has a real destination.
+            We can add quiz, account, and app-level preferences here later.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">

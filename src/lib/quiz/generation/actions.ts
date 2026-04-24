@@ -8,6 +8,7 @@ import { requireCurrentSession } from "@/lib/auth/session";
 import {
   copyPublicQuizForUser,
   createQuizDraftForUser,
+  deleteQuizForUser,
   getPublicQuizRecord,
   getQuizRecordForUser,
   retryQuizGenerationForUser,
@@ -15,6 +16,7 @@ import {
   updateQuizPublicForUser,
   type CopyPublicQuizResult,
   type CreateQuizDraftResult,
+  type DeleteQuizResult,
   type UpdateQuizPublicResult,
 } from "@/lib/quiz/generation/service";
 
@@ -80,6 +82,20 @@ export async function copyPublicQuizAction(
 
   if (result.success) {
     revalidatePath("/dashboard");
+  }
+
+  return result;
+}
+
+export async function deleteQuizAction(
+  quizId: string,
+): Promise<DeleteQuizResult> {
+  const session = await requireCurrentSession();
+  const result = await deleteQuizForUser(quizId, session.user.id);
+
+  if (result.success) {
+    revalidatePath("/dashboard");
+    revalidatePath(`/quiz/${quizId}`);
   }
 
   return result;

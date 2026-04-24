@@ -8,6 +8,7 @@ import { PromptBuilderSection } from "@/components/dashboard/prompt-builder-sect
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatResourceSize,
@@ -170,61 +171,57 @@ export function PromptBuilder() {
         />
       </Field>
 
-      <Field className="bg-secondary rounded-4xl p-2 gap-0">
-        <div className="flex flex-col gap-4">
-          <input
-            accept={RESOURCE_ACCEPT}
-            className="sr-only"
-            multiple
-            onChange={handleResourceChange}
-            ref={resourceInputRef}
-            type="file"
-          />
-          {state.resources.length > 0 ? (
-            <div className="flex flex-col gap-2 pb-4">
-              {state.resources.map((resource) => (
-                <div
-                  className="bg-background flex items-center gap-3 rounded-2xl px-3 py-2.5"
-                  key={resource.id}
-                >
-                  <div className="bg-muted relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border">
-                    {resource.kind === "image" ? (
-                      <img
-                        alt={resource.name}
-                        className="h-full w-full object-cover"
-                        src={imagePreviewUrls[resource.id]}
-                      />
-                    ) : (
-                      <FileText />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {resource.name}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {formatResourceSize(resource.size)}
-                    </p>
-                  </div>
-                  <Button
-                    aria-label={`Remove ${resource.name}`}
-                    onClick={() =>
-                      dispatch({
-                        type: "remove-resource",
-                        resourceId: resource.id,
-                      })
-                    }
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Trash2 />
-                  </Button>
+      <Surface className="flex flex-col gap-2 p-2">
+        <input
+          accept={RESOURCE_ACCEPT}
+          className="sr-only"
+          multiple
+          onChange={handleResourceChange}
+          ref={resourceInputRef}
+          type="file"
+        />
+        {state.resources.length > 0
+          ? state.resources.map((resource) => (
+              <SurfaceInset
+                className="flex items-center gap-3 px-3 py-2.5"
+                key={resource.id}
+              >
+                <div className="bg-muted relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border">
+                  {resource.kind === "image" ? (
+                    <img
+                      alt={resource.name}
+                      className="h-full w-full object-cover"
+                      src={imagePreviewUrls[resource.id]}
+                    />
+                  ) : (
+                    <FileText />
+                  )}
                 </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {resource.name}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {formatResourceSize(resource.size)}
+                  </p>
+                </div>
+                <Button
+                  aria-label={`Remove ${resource.name}`}
+                  onClick={() =>
+                    dispatch({
+                      type: "remove-resource",
+                      resourceId: resource.id,
+                    })
+                  }
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Trash2 />
+                </Button>
+              </SurfaceInset>
+            ))
+          : null}
         <Button
           disabled={isPreparingResources}
           onClick={() => resourceInputRef.current?.click()}
@@ -243,8 +240,8 @@ export function PromptBuilder() {
         {resourceError ? (
           <p className="text-sm text-destructive">{resourceError}</p>
         ) : null}
-      </Field>
-      <div className="flex flex-col gap-2 bg-secondary rounded-4xl p-2">
+      </Surface>
+      <Surface className="flex flex-col gap-2 p-2">
         {state.sections.length > 0
           ? state.sections.map((section, index) => (
               <PromptBuilderSection
@@ -302,7 +299,7 @@ export function PromptBuilder() {
           <Plus data-icon="inline-start" />
           Add section
         </Button>
-      </div>
+      </Surface>
       <Button
         size="lg"
         className="font-semibold"

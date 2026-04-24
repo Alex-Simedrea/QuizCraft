@@ -20,7 +20,7 @@ import {
 } from "@/components/quiz/solve/grading-utils";
 import { QuizSolvingSection } from "@/components/quiz/solve/solving-section";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   submitGuestQuizAttemptAction,
   submitPublicQuizAttemptAction,
@@ -185,18 +185,20 @@ export function QuizSolvingView({
       ) : null}
       {attempt?.status === "failed" ? (
         <Card>
-          <CardTitle>Error</CardTitle>
-          <CardContent className="pt-6 text-sm text-destructive">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent className="text-destructive">
             {attempt.errorMessage ?? "The attempt could not be graded."}
           </CardContent>
         </Card>
       ) : null}
       {submitError ? (
         <Card>
-          <CardTitle>Error</CardTitle>
-          <CardContent className="pt-6 text-sm text-destructive">
-            {submitError}
-          </CardContent>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent className="text-destructive">{submitError}</CardContent>
         </Card>
       ) : null}
       {sections.map((section) => (

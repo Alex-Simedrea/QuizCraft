@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Surface, SurfaceInset } from "@/components/ui/surface";
 import type { QuizEditAgentReference } from "@/lib/quiz/edit-agent/types";
 import { cn } from "@/lib/utils";
 
@@ -161,14 +162,14 @@ export function SortableSectionEditor({
   }
 
   return (
-    <section
+    <Surface
       className={cn(
-        "bg-secondary rounded-4xl p-3 flex flex-col gap-3",
+        "flex flex-col gap-3",
         isDragSource && "ring-ring opacity-60 ring-1",
       )}
       ref={ref}
     >
-      <div className="bg-background flex flex-col gap-3 rounded-3xl p-3">
+      <SurfaceInset className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <SortableHandle handleRef={handleRef} label="Reorder section" />
           <Field className="min-w-64 flex-1">
@@ -218,7 +219,7 @@ export function SortableSectionEditor({
             <Trash2 data-icon="inline-start" />
           </Button>
         </div>
-      </div>
+      </SurfaceInset>
 
       {section.questions.map((question, questionIndex) => (
         <SortableQuestionEditor
@@ -250,6 +251,6 @@ export function SortableSectionEditor({
           Add question
         </Button>
       ) : null}
-    </section>
+    </Surface>
   );
 }
