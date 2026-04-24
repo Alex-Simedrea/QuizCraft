@@ -138,6 +138,8 @@ export function QuizWorkspace({ initialQuiz }: QuizWorkspaceProps) {
       <QuizOverviewActions
         attemptsHref={`/quiz/${quiz.id}/attempts`}
         editHref={`/quiz/${quiz.id}/edit`}
+        isPublic={quiz.isPublic}
+        quizId={quiz.id}
         solveHref={`/quiz/${quiz.id}/solve`}
       />
       <QuizStructure

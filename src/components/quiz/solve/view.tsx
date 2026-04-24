@@ -21,7 +21,11 @@ import {
 import { QuizSolvingSection } from "@/components/quiz/solve/solving-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { submitQuizAttemptAction } from "@/lib/quiz/attempts/actions";
+import {
+  submitGuestQuizAttemptAction,
+  submitPublicQuizAttemptAction,
+  submitQuizAttemptAction,
+} from "@/lib/quiz/attempts/actions";
 import {
   type QuizAttemptQuestionResult,
   type QuizAttemptRecord,
@@ -32,6 +36,10 @@ type QuizSolvingViewProps = {
   initialAttempt: QuizAttemptRecord | null;
   quizId: string;
   sections: QuizSection[];
+  submitMode?:
+    | { kind: "guest"; guestName: string }
+    | { kind: "owner" }
+    | { kind: "public-user" };
   title: string;
 };
 
@@ -39,6 +47,7 @@ export function QuizSolvingView({
   initialAttempt,
   quizId,
   sections,
+  submitMode = { kind: "owner" },
   title,
 }: QuizSolvingViewProps) {
   const router = useRouter();
@@ -78,18 +87,37 @@ export function QuizSolvingView({
     setOptimisticResults(immediateResults);
 
     startSubmitting(() => {
-      void submitQuizAttemptAction(quizId, {
-        answers: toSubmitAnswers(answers),
-      }).then((result) => {
+      const payload =
+        submitMode.kind === "guest"
+          ? {
+              answers: toSubmitAnswers(answers),
+              guestName: submitMode.guestName,
+            }
+          : {
+              answers: toSubmitAnswers(answers),
+            };
+      const request =
+        submitMode.kind === "guest"
+          ? submitGuestQuizAttemptAction(quizId, payload)
+          : submitMode.kind === "public-user"
+            ? submitPublicQuizAttemptAction(quizId, payload)
+            : submitQuizAttemptAction(quizId, payload);
+
+      void request.then((result) => {
         if (!result.success) {
-          setSubmitError(result.message);
+          setSubmitError(result.message ?? "The quiz could not be submitted.");
           return;
         }
 
-        router.push(`/quiz/${quizId}/attempts/${result.attemptId}`);
+        const attemptHref =
+          submitMode.kind === "guest"
+            ? `/share/${quizId}/attempts/${result.attemptId}`
+            : `/quiz/${quizId}/attempts/${result.attemptId}`;
+
+        router.push(attemptHref);
       });
     });
-  }, [answers, quizId, router, sections]);
+  }, [answers, quizId, router, sections, submitMode]);
 
   const headerConfig = useMemo(
     () => ({

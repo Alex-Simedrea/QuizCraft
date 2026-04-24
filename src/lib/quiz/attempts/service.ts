@@ -1,8 +1,10 @@
-import { and, desc, eq } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
+
+import { and, desc, eq, ne, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, sql } from "@/db";
-import { quizAttemptJobs, quizAttempts, quizzes } from "@/db/schema";
+import { quizAttemptJobs, quizAttempts, quizzes, users } from "@/db/schema";
 import { getQuizEnv } from "@/lib/env";
 import { createQuizOllamaClient } from "@/lib/ollama-client";
 import {
@@ -23,6 +25,9 @@ const answerValueSchema = z.union([z.string(), z.array(z.string())]);
 const submitAttemptInputSchema = z.object({
   answers: z.record(z.string(), answerValueSchema),
 });
+const submitGuestAttemptInputSchema = submitAttemptInputSchema.extend({
+  guestName: z.string().trim().min(1).max(120),
+});
 
 const modelTextResultSchema = z.object({
   questionId: z.string().min(1),
@@ -37,6 +42,19 @@ const modelAttemptFeedbackSchema = z.object({
   overallFeedback: z.string().trim().min(1).max(1000).optional(),
 });
 const MAX_ATTEMPT_GRADING_ATTEMPTS = 2;
+const MAX_ATTEMPT_JOB_ATTEMPTS = 3;
+
+export function createGuestAttemptToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function getGuestAttemptCookieName(attemptId: string) {
+  return `${GUEST_ATTEMPT_COOKIE_PREFIX}${attemptId}`;
+}
+
+export function hashGuestAttemptToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export type QuizAttemptSubmitResult =
   | {
@@ -48,6 +66,19 @@ export type QuizAttemptSubmitResult =
       message: string;
     };
 
+export type GuestQuizAttemptSubmitResult =
+  | {
+      success: true;
+      attemptId: string;
+      accessToken: string;
+    }
+  | {
+      success: false;
+      message: string;
+    };
+
+export const GUEST_ATTEMPT_COOKIE_PREFIX = "qc_guest_attempt_";
+
 function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
   return {
     activeChunkId: record.activeChunkId,
@@ -56,6 +87,7 @@ function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
     errorMessage: record.errorMessage,
     generatedSections: record.generatedSections,
     id: record.id,
+    isPublic: record.isPublic,
     prompt: record.prompt,
     resources: record.resources,
     status: record.status,
@@ -66,6 +98,7 @@ function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
 
 function toAttemptRecord(
   attempt: typeof quizAttempts.$inferSelect,
+  takerName?: string | null,
 ): QuizAttemptRecord {
   return {
     answers: attempt.answers,
@@ -80,6 +113,8 @@ function toAttemptRecord(
     results: attempt.results,
     tips: attempt.tips,
     status: attempt.status,
+    takerName: takerName ?? attempt.guestName ?? "Guest",
+    takerType: attempt.userId ? "user" : "guest",
   };
 }
 
@@ -346,6 +381,17 @@ async function getReadyQuizForUser(quizId: string, userId: string) {
   return toQuizRecord(quiz);
 }
 
+async function getReadyPublicQuiz(quizId: string) {
+  const [quiz] = await db
+    .select()
+    .from(quizzes)
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.isPublic, true)))
+    .limit(1);
+
+  if (!quiz || quiz.status !== "ready") return null;
+  return toQuizRecord(quiz);
+}
+
 async function notifyQuizAttemptJob(attemptId: string) {
   await sql.notify(QUIZ_ATTEMPT_GRADING_CHANNEL, attemptId);
 }
@@ -383,21 +429,56 @@ export async function getLatestQuizAttemptForUser(
 }
 
 export async function getQuizAttemptsForUser(quizId: string, userId: string) {
+  const [quiz] = await db
+    .select({ id: quizzes.id })
+    .from(quizzes)
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)))
+    .limit(1);
+
+  if (!quiz) return [];
+
   const attempts = await db
-    .select()
+    .select({
+      attempt: quizAttempts,
+      userName: users.name,
+    })
     .from(quizAttempts)
-    .where(
-      and(eq(quizAttempts.quizId, quizId), eq(quizAttempts.userId, userId)),
-    )
+    .leftJoin(users, eq(users.id, quizAttempts.userId))
+    .where(eq(quizAttempts.quizId, quizId))
     .orderBy(desc(quizAttempts.createdAt));
 
-  return attempts.map(toAttemptRecord);
+  return attempts.map((row) => toAttemptRecord(row.attempt, row.userName));
 }
 
 export async function getQuizAttemptForUser(
   quizId: string,
   attemptId: string,
   userId: string,
+) {
+  const [row] = await db
+    .select({
+      attempt: quizAttempts,
+      userName: users.name,
+    })
+    .from(quizAttempts)
+    .innerJoin(quizzes, eq(quizzes.id, quizAttempts.quizId))
+    .leftJoin(users, eq(users.id, quizAttempts.userId))
+    .where(
+      and(
+        eq(quizAttempts.id, attemptId),
+        eq(quizAttempts.quizId, quizId),
+        or(eq(quizAttempts.userId, userId), eq(quizzes.userId, userId)),
+      ),
+    )
+    .limit(1);
+
+  return row ? toAttemptRecord(row.attempt, row.userName) : null;
+}
+
+export async function getGuestQuizAttempt(
+  quizId: string,
+  attemptId: string,
+  accessToken: string,
 ) {
   const [attempt] = await db
     .select()
@@ -406,36 +487,60 @@ export async function getQuizAttemptForUser(
       and(
         eq(quizAttempts.id, attemptId),
         eq(quizAttempts.quizId, quizId),
-        eq(quizAttempts.userId, userId),
+        eq(
+          quizAttempts.guestAccessTokenHash,
+          hashGuestAttemptToken(accessToken),
+        ),
       ),
     )
     .limit(1);
 
-  return attempt ? toAttemptRecord(attempt) : null;
+  if (!attempt) return null;
+
+  if (attempt.status === "grading") {
+    return toAttemptRecord(attempt);
+  }
+
+  if (attempt.guestResultViewedAt) {
+    return null;
+  }
+
+  const [viewedAttempt] = await db
+    .update(quizAttempts)
+    .set({
+      guestResultViewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(quizAttempts.id, attempt.id))
+    .returning();
+
+  return viewedAttempt ? toAttemptRecord(viewedAttempt) : null;
 }
 
-export async function submitQuizAttemptForUser(
-  quizId: string,
-  input: unknown,
-  userId: string,
+export async function getQuizAttemptsMadeByUser(userId: string) {
+  const attempts = await db
+    .select({
+      attempt: quizAttempts,
+      userName: users.name,
+    })
+    .from(quizAttempts)
+    .innerJoin(quizzes, eq(quizzes.id, quizAttempts.quizId))
+    .leftJoin(users, eq(users.id, quizAttempts.userId))
+    .where(and(eq(quizAttempts.userId, userId), ne(quizzes.userId, userId)))
+    .orderBy(desc(quizAttempts.createdAt));
+
+  return attempts.map((row) => toAttemptRecord(row.attempt, row.userName));
+}
+
+async function createQuizAttempt(
+  quiz: QuizRecord,
+  answers: Record<string, QuizAttemptAnswerValue>,
+  options: {
+    guestAccessTokenHash?: string | null;
+    guestName?: string | null;
+    userId?: string | null;
+  },
 ): Promise<QuizAttemptSubmitResult> {
-  const parsedInput = submitAttemptInputSchema.safeParse(input);
-  if (!parsedInput.success) {
-    return {
-      message: "The submitted answers were invalid.",
-      success: false,
-    };
-  }
-
-  const quiz = await getReadyQuizForUser(quizId, userId);
-  if (!quiz) {
-    return {
-      message: "Quiz not found.",
-      success: false,
-    };
-  }
-
-  const answers = parsedInput.data.answers;
   const questions = getQuestions(quiz.generatedSections);
   const choiceResults: QuizAttemptQuestionResult[] = [];
   const textQuestions: Extract<
@@ -465,7 +570,7 @@ export async function submitQuizAttemptForUser(
             QuizQuestion,
             { type: "short-text" | "long-text" }
           >,
-          null,
+          getAnswer(answers, question.id),
         )
       );
     }),
@@ -492,7 +597,9 @@ export async function submitQuizAttemptForUser(
         results,
         status: "grading",
         tips: [],
-        userId,
+        userId: options.userId ?? null,
+        guestName: options.guestName ?? null,
+        guestAccessTokenHash: options.guestAccessTokenHash ?? null,
       })
       .returning();
 
@@ -503,7 +610,7 @@ export async function submitQuizAttemptForUser(
     await tx.insert(quizAttemptJobs).values({
       attemptId: createdAttempt.id,
       quizId: quiz.id,
-      userId,
+      userId: options.userId ?? null,
       status: "queued",
       attempts: 0,
       claimedAt: null,
@@ -522,6 +629,92 @@ export async function submitQuizAttemptForUser(
   };
 }
 
+export async function submitQuizAttemptForUser(
+  quizId: string,
+  input: unknown,
+  userId: string,
+): Promise<QuizAttemptSubmitResult> {
+  const parsedInput = submitAttemptInputSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return {
+      message: "The submitted answers were invalid.",
+      success: false,
+    };
+  }
+
+  const quiz = await getReadyQuizForUser(quizId, userId);
+  if (!quiz) {
+    return {
+      message: "Quiz not found.",
+      success: false,
+    };
+  }
+
+  return createQuizAttempt(quiz, parsedInput.data.answers, { userId });
+}
+
+export async function submitPublicQuizAttemptForUser(
+  quizId: string,
+  input: unknown,
+  userId: string,
+): Promise<QuizAttemptSubmitResult> {
+  const parsedInput = submitAttemptInputSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return {
+      message: "The submitted answers were invalid.",
+      success: false,
+    };
+  }
+
+  const quiz = await getReadyPublicQuiz(quizId);
+  if (!quiz) {
+    return {
+      message: "Quiz not found.",
+      success: false,
+    };
+  }
+
+  return createQuizAttempt(quiz, parsedInput.data.answers, { userId });
+}
+
+export async function submitGuestQuizAttempt(
+  quizId: string,
+  input: unknown,
+): Promise<GuestQuizAttemptSubmitResult> {
+  const parsedInput = submitGuestAttemptInputSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return {
+      message: "Enter your name before submitting.",
+      success: false,
+    };
+  }
+
+  const quiz = await getReadyPublicQuiz(quizId);
+  if (!quiz) {
+    return {
+      message: "Quiz not found.",
+      success: false,
+    };
+  }
+
+  const accessToken = createGuestAttemptToken();
+  const result = await createQuizAttempt(quiz, parsedInput.data.answers, {
+    guestAccessTokenHash: hashGuestAttemptToken(accessToken),
+    guestName: parsedInput.data.guestName,
+    userId: null,
+  });
+
+  if (!result.success) {
+    return result;
+  }
+
+  return {
+    accessToken,
+    attemptId: result.attemptId,
+    success: true,
+  };
+}
+
 async function claimNextQuizAttemptJob(workerId: string) {
   const staleAfterSeconds = Math.floor(QUIZ_ATTEMPT_JOB_STALE_AFTER_MS / 1000);
   const [job] = await sql<ClaimedQuizAttemptJob[]>`
@@ -529,9 +722,13 @@ async function claimNextQuizAttemptJob(workerId: string) {
       select "id"
       from "quiz_attempt_jobs"
       where
-        "status" = 'queued'
+        (
+          "status" = 'queued'
+          and "attempts" < ${MAX_ATTEMPT_JOB_ATTEMPTS}
+        )
         or (
           "status" = 'running'
+          and "attempts" < ${MAX_ATTEMPT_JOB_ATTEMPTS}
           and coalesce("last_heartbeat_at", "claimed_at", "updated_at")
             < now() - (${staleAfterSeconds} * interval '1 second')
         )
@@ -575,7 +772,22 @@ async function reconcileQueuedQuizAttemptJobs() {
     where
       "jobs"."attempt_id" = "attempts"."id"
       and "attempts"."status" = 'grading'
+      and "jobs"."attempts" < ${MAX_ATTEMPT_JOB_ATTEMPTS}
       and "jobs"."status" not in ('queued', 'running')
+  `;
+
+  await sql`
+    update "quiz_attempts" as "attempts"
+    set
+      "status" = 'failed',
+      "error_message" = coalesce("jobs"."error_message", 'Attempt grading failed.'),
+      "updated_at" = now()
+    from "quiz_attempt_jobs" as "jobs"
+    where
+      "jobs"."attempt_id" = "attempts"."id"
+      and "attempts"."status" = 'grading'
+      and "jobs"."status" = 'failed'
+      and "jobs"."attempts" >= ${MAX_ATTEMPT_JOB_ATTEMPTS}
   `;
 
   await sql`
@@ -678,13 +890,12 @@ async function runClaimedQuizAttemptJob(
         and(
           eq(quizAttempts.id, job.attemptId),
           eq(quizAttempts.quizId, job.quizId),
-          eq(quizAttempts.userId, job.userId),
         ),
       )
       .limit(1);
 
     if (!attempt) {
-      await failQuizAttemptJob(job.id, workerId, "Attempt not found.");
+      await completeQuizAttemptJob(job.id, workerId);
       return {
         processed: true,
         outcome: "failed",
@@ -697,6 +908,7 @@ async function runClaimedQuizAttemptJob(
 
     const quiz: QuizRecord = {
       id: attempt.quizId,
+      isPublic: false,
       title: attempt.quizTitle,
       prompt: "",
       status: "ready",
@@ -852,7 +1064,7 @@ type ClaimedQuizAttemptJob = {
   id: string;
   attemptId: string;
   quizId: string;
-  userId: string;
+  userId: string | null;
   attempts: number;
 };
 

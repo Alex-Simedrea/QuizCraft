@@ -88,6 +88,7 @@ export const quizzes = pgTable(
     generatedSections: jsonb("generated_sections")
       .$type<QuizSection[]>()
       .notNull(),
+    isPublic: boolean("is_public").notNull().default(false),
     completedChunks: integer("completed_chunks").notNull().default(0),
     totalChunks: integer("total_chunks").notNull(),
     activeChunkId: varchar("active_chunk_id", { length: 120 }),
@@ -144,9 +145,14 @@ export const quizAttempts = pgTable(
     quizId: uuid("quiz_id")
       .notNull()
       .references(() => quizzes.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    guestName: varchar("guest_name", { length: 120 }),
+    guestAccessTokenHash: text("guest_access_token_hash"),
+    guestResultViewedAt: timestamp("guest_result_viewed_at", {
+      withTimezone: true,
+    }),
     status: varchar("status", { length: 24 })
       .$type<QuizAttemptStatus>()
       .notNull()
@@ -175,6 +181,9 @@ export const quizAttempts = pgTable(
     quizAttemptsUserQuizCreatedAtIndex: index(
       "quiz_attempts_user_quiz_created_at_idx",
     ).on(table.userId, table.quizId, table.createdAt),
+    quizAttemptsGuestAccessTokenHashIndex: index(
+      "quiz_attempts_guest_access_token_hash_idx",
+    ).on(table.guestAccessTokenHash),
   }),
 );
 
@@ -188,9 +197,9 @@ export const quizAttemptJobs = pgTable(
     quizId: uuid("quiz_id")
       .notNull()
       .references(() => quizzes.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
     status: varchar("status", { length: 24 })
       .$type<QuizAttemptJobStatus>()
       .notNull()

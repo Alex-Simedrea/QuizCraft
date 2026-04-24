@@ -108,6 +108,7 @@ export type QuizAttemptJobStatus =
 
 export type QuizRecord = {
   id: string;
+  isPublic: boolean;
   title: string;
   prompt: string;
   status: QuizStatus;
@@ -136,6 +137,8 @@ export type QuizAttemptQuestionResult = {
 export type QuizAttemptRecord = {
   id: string;
   quizId: string;
+  takerName: string;
+  takerType: "user" | "guest";
   status: QuizAttemptStatus;
   errorMessage: string | null;
   quizTitle: string;

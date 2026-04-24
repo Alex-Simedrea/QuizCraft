@@ -64,6 +64,7 @@ function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
     errorMessage: record.errorMessage,
     generatedSections: record.generatedSections,
     id: record.id,
+    isPublic: record.isPublic,
     prompt: record.prompt,
     resources: record.resources,
     status: record.status,

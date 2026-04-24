@@ -3,6 +3,7 @@
 import {
   ChevronsUpDown,
   CircleAlert,
+  ClipboardList,
   ListEnd,
   Plus,
   Settings,
@@ -59,29 +60,22 @@ function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-function getQuizStatusCopy(status: QuizStatus) {
-  switch (status) {
-    case "ready":
-      return "Ready";
-    case "failed":
-      return "Failed";
-    case "generating":
-      return "Generating";
-    case "queued":
-      return "Queued";
-  }
-}
-
 export function AppSidebar({ quizzes, user }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
     <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader>
+      <SidebarHeader className="gap-1">
         <SidebarMenuButton asChild className="w-full justify-start">
           <Link href="/dashboard">
             <Plus data-icon="inline-start" />
             New quiz
+          </Link>
+        </SidebarMenuButton>
+        <SidebarMenuButton asChild data-active={pathname === "/attempts"}>
+          <Link href="/attempts">
+            <ClipboardList data-icon="inline-start" />
+            My attempts
           </Link>
         </SidebarMenuButton>
       </SidebarHeader>

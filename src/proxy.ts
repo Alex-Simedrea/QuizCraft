@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import { SESSION_COOKIE_NAME } from "@/lib/auth/constants";
 import { verifySessionToken } from "@/lib/auth/token";
 
-const protectedPrefixes = ["/dashboard"];
+const protectedPrefixes = ["/attempts", "/dashboard"];
 const authRoutes = ["/login", "/register"];
 
 function isProtectedRoute(pathname: string) {

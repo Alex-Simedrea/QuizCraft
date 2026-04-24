@@ -78,6 +78,13 @@
       "when": 1776880200000,
       "tag": "0010_attempt_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776883800000,
+      "tag": "0011_public_quizzes_guest_attempts",
+      "breakpoints": true
     }
   ]
 }

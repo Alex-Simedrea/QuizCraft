@@ -261,6 +261,26 @@ export type UpdateQuizContentResult =
       issues?: string[];
     };
 
+export type UpdateQuizPublicResult =
+  | {
+      success: true;
+      quiz: QuizRecord;
+    }
+  | {
+      success: false;
+      message: string;
+    };
+
+export type CopyPublicQuizResult =
+  | {
+      success: true;
+      quizId: string;
+    }
+  | {
+      success: false;
+      message: string;
+    };
+
 export const QUIZ_GENERATION_CHANNEL = "quiz_generation_jobs";
 export const QUIZ_GENERATION_RECONCILE_INTERVAL_MS = 30_000;
 
@@ -1052,6 +1072,7 @@ function parseQuizRequest(formData: FormData): QuizRequest {
 function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
   return {
     id: record.id,
+    isPublic: record.isPublic,
     title: record.title,
     prompt: record.prompt,
     status: record.status,
@@ -1427,6 +1448,94 @@ export async function getQuizRecordForUser(quizId: string, userId: string) {
   });
 
   return quiz ? toQuizRecord(quiz) : null;
+}
+
+export async function getPublicQuizRecord(quizId: string) {
+  const quiz = await db.query.quizzes.findFirst({
+    where: and(eq(quizzes.id, quizId), eq(quizzes.isPublic, true)),
+  });
+
+  if (!quiz || quiz.status !== "ready") {
+    return null;
+  }
+
+  return toQuizRecord(quiz);
+}
+
+export async function updateQuizPublicForUser(
+  quizId: string,
+  userId: string,
+  isPublic: boolean,
+): Promise<UpdateQuizPublicResult> {
+  const [updatedQuiz] = await db
+    .update(quizzes)
+    .set({
+      isPublic,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)))
+    .returning();
+
+  if (!updatedQuiz) {
+    return {
+      success: false,
+      message: "Quiz not found.",
+    };
+  }
+
+  return {
+    success: true,
+    quiz: toQuizRecord(updatedQuiz),
+  };
+}
+
+export async function copyPublicQuizForUser(
+  quizId: string,
+  userId: string,
+): Promise<CopyPublicQuizResult> {
+  const sourceQuiz = await db.query.quizzes.findFirst({
+    where: and(eq(quizzes.id, quizId), eq(quizzes.isPublic, true)),
+  });
+
+  if (!sourceQuiz || sourceQuiz.status !== "ready") {
+    return {
+      success: false,
+      message: "Quiz not found.",
+    };
+  }
+
+  const [copiedQuiz] = await db
+    .insert(quizzes)
+    .values({
+      userId,
+      title: sourceQuiz.title,
+      titleGenerated: sourceQuiz.titleGenerated,
+      prompt: sourceQuiz.prompt,
+      status: sourceQuiz.status,
+      draftSnapshot: sourceQuiz.draftSnapshot,
+      resources: sourceQuiz.resources,
+      generatedSections: sourceQuiz.generatedSections,
+      isPublic: false,
+      completedChunks: sourceQuiz.completedChunks,
+      totalChunks: sourceQuiz.totalChunks,
+      activeChunkId: null,
+      errorMessage: null,
+    })
+    .returning({
+      id: quizzes.id,
+    });
+
+  if (!copiedQuiz) {
+    return {
+      success: false,
+      message: "Failed to save quiz.",
+    };
+  }
+
+  return {
+    success: true,
+    quizId: copiedQuiz.id,
+  };
 }
 
 export async function updateQuizContentForUser(

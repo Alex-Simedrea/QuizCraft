@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { QuizAttemptsHeader } from "@/components/quiz/attempts/header";
+import { MyAttemptsHeader } from "@/components/quiz/attempts/my-attempts-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getQuizAttemptsAction } from "@/lib/quiz/attempts/actions";
+import { getMyExternalQuizAttemptsAction } from "@/lib/quiz/attempts/actions";
 import type { QuizAttemptRecord } from "@/lib/quiz/preview";
 
 function hasPendingTextReview(attempt: QuizAttemptRecord) {
@@ -14,21 +14,16 @@ function hasPendingTextReview(attempt: QuizAttemptRecord) {
   );
 }
 
-export default async function QuizAttemptsPage({
-  params,
-}: {
-  params: Promise<{ quizId: string }>;
-}) {
-  const { quizId } = await params;
-  const attempts = await getQuizAttemptsAction(quizId);
+export default async function MyAttemptsPage() {
+  const attempts = await getMyExternalQuizAttemptsAction();
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 pt-20 md:p-8 md:pt-20 lg:p-10 lg:pt-20">
-      <QuizAttemptsHeader />
+      <MyAttemptsHeader />
       {attempts.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
-            No attempts yet.
+            No attempts on shared quizzes yet.
           </CardContent>
         </Card>
       ) : (
@@ -46,9 +41,6 @@ export default async function QuizAttemptsPage({
               </CardHeader>
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
-                  {attempt.takerName}
-                  {attempt.takerType === "guest" ? " (guest)" : ""}
-                  {" · "}
                   {attempt.status === "completed" ||
                   (attempt.status === "grading" && !pendingTextReview)
                     ? `${percentage}% · ${attempt.earnedPoints}/${attempt.maxPoints} points`
@@ -59,7 +51,7 @@ export default async function QuizAttemptsPage({
                   {new Date(attempt.createdAt).toLocaleString()}
                 </div>
                 <Button asChild variant="secondary">
-                  <Link href={`/quiz/${quizId}/attempts/${attempt.id}`}>
+                  <Link href={`/quiz/${attempt.quizId}/attempts/${attempt.id}`}>
                     View attempt
                   </Link>
                 </Button>
