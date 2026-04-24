@@ -19,6 +19,10 @@ const authEnvSchema = z.object({
 type DatabaseEnv = z.infer<typeof databaseEnvSchema>;
 type AuthEnv = z.infer<typeof authEnvSchema>;
 const quizEnvSchema = z.object({
+  OLLAMA_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   OLLAMA_HOST: z
     .string()
     .url("OLLAMA_HOST must be a valid URL.")
@@ -55,6 +59,7 @@ export function getQuizEnv() {
   }
 
   cachedQuizEnv = quizEnvSchema.parse({
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
     OLLAMA_HOST: process.env.OLLAMA_HOST ?? process.env.OLLAMA_BASE_URL,
     OLLAMA_MODEL:
       process.env.OLLAMA_MODEL ??

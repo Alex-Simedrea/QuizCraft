@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { getQuizRecordForCurrentUser } from "@/lib/quiz-generation";
-import { QuizWorkspace } from "@/components/quiz/quiz-workspace";
+import { getQuizRecordForCurrentUser } from "@/lib/quiz/generation/actions";
+import { QuizWorkspace } from "@/components/quiz/workspace/view";
 
 export default async function QuizPage({
   params,

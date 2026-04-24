@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentSession } from "@/lib/auth/session";
-import { getQuizRecordForUser } from "@/lib/quiz-generation-service";
+import { getQuizRecordForUser } from "@/lib/quiz/generation/service";
 
 export async function GET(
   _request: Request,

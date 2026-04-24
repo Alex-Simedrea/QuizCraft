@@ -29,6 +29,55 @@
       "when": 1776596400000,
       "tag": "0003_loud_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776669000000,
+      "tag": "0004_lively_mariko",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776862200000,
+      "tag": "0005_quiet_agent",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776865800000,
+      "tag": "0006_agent_chat_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776869400000,
+      "tag": "0007_agent_last_selected_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776873000000,
+      "tag": "0008_agent_operation_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776876600000,
+      "tag": "0009_quiz_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776880200000,
+      "tag": "0010_attempt_jobs",
+      "breakpoints": true
     }
   ]
 }

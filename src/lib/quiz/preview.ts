@@ -1,4 +1,4 @@
-import type { QuestionDifficulty, QuestionType } from "@/lib/quiz-draft";
+import type { QuestionDifficulty, QuestionType } from "@/lib/quiz/draft";
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -99,6 +99,12 @@ export type QuizGenerationJobStatus =
   | "running"
   | "completed"
   | "failed";
+export type QuizAttemptStatus = "grading" | "completed" | "failed";
+export type QuizAttemptJobStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed";
 
 export type QuizRecord = {
   id: string;
@@ -112,6 +118,34 @@ export type QuizRecord = {
   draftSnapshot: QuizDraftSnapshot;
   resources: QuizStoredResource[];
   generatedSections: QuizSection[];
+};
+
+export type QuizAttemptAnswerValue = string | string[];
+
+export type QuizAttemptQuestionResult = {
+  questionId: string;
+  type: QuizQuestion["type"];
+  correct: boolean;
+  earnedPoints: number;
+  maxPoints: number;
+  feedback: string;
+  userAnswer: QuizAttemptAnswerValue | null;
+  correctAnswer: string;
+};
+
+export type QuizAttemptRecord = {
+  id: string;
+  quizId: string;
+  status: QuizAttemptStatus;
+  errorMessage: string | null;
+  quizTitle: string;
+  quizSections: QuizSection[];
+  answers: Record<string, QuizAttemptAnswerValue>;
+  results: QuizAttemptQuestionResult[];
+  tips: string[];
+  earnedPoints: number;
+  maxPoints: number;
+  createdAt: string;
 };
 
 export type QuizGenerationChunk = {

@@ -9,9 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { formatResourceSize, initialQuizDraftState, quizDraftReducer } from "@/lib/quiz-draft";
-import { createQuizDraftAction } from "@/lib/quiz-generation";
-import { prepareContextResourceFile } from "@/lib/resource-upload.client";
+import {
+  formatResourceSize,
+  initialQuizDraftState,
+  quizDraftReducer,
+} from "@/lib/quiz/draft";
+import { createQuizDraftAction } from "@/lib/quiz/generation/actions";
+import { prepareContextResourceFile } from "@/lib/quiz/resource-upload.client";
 
 const RESOURCE_ACCEPT = "image/*,.pdf,.docx,.txt,.md";
 
@@ -59,7 +63,9 @@ export function PromptBuilder() {
     };
   }, []);
 
-  async function handleResourceChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleResourceChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
 
@@ -86,7 +92,9 @@ export function PromptBuilder() {
         files: preparedFiles,
       });
     } catch {
-      setResourceError("Resources could not be prepared. Try selecting them again.");
+      setResourceError(
+        "Resources could not be prepared. Try selecting them again.",
+      );
     } finally {
       setIsPreparingResources(false);
     }
@@ -236,7 +244,7 @@ export function PromptBuilder() {
           <p className="text-sm text-destructive">{resourceError}</p>
         ) : null}
       </Field>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 bg-secondary rounded-4xl p-2">
         {state.sections.length > 0
           ? state.sections.map((section, index) => (
               <PromptBuilderSection
@@ -281,7 +289,7 @@ export function PromptBuilder() {
             ))
           : null}
         <Button
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto bg-background"
           onClick={() =>
             dispatch({
               type: "add-section",

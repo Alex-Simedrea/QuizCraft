@@ -4,7 +4,6 @@ import { CheckCircle2, Eye, EyeOff, LockKeyhole, XCircle } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { ControllerRenderProps, FieldPath, FieldValues } from "react-hook-form";
 
-import { getPasswordChecks } from "@/lib/validation/auth";
 import {
   Field,
   FieldDescription,
@@ -25,6 +24,7 @@ import {
   PopoverHeader,
   PopoverTitle,
 } from "@/components/ui/popover";
+import { getPasswordChecks } from "@/lib/validation/auth";
 
 type PasswordFieldProps<TFieldValues extends FieldValues> = {
   autoComplete: string;

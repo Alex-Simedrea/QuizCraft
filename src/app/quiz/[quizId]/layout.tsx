@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { requireCurrentSession } from "@/lib/auth/session";
-import { getSidebarQuizzesForUser } from "@/lib/quiz-sidebar";
+import { getSidebarQuizzesForUser } from "@/lib/quiz/sidebar";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default async function QuizLayout({

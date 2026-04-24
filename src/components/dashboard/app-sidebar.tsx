@@ -1,9 +1,17 @@
 "use client";
 
+import {
+  ChevronsUpDown,
+  CircleAlert,
+  ListEnd,
+  Plus,
+  Settings,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown, Plus, Settings, UserRound } from "lucide-react";
 
+import { LogoutMenuItem } from "@/components/dashboard/logout-menu-item";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -27,8 +35,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { LogoutMenuItem } from "@/components/dashboard/logout-menu-item";
-import type { QuizStatus } from "@/lib/quiz-preview";
+import { Spinner } from "@/components/ui/spinner";
+import type { QuizStatus } from "@/lib/quiz/preview";
 
 export type SidebarQuizItem = {
   id: string;
@@ -87,15 +95,16 @@ export function AppSidebar({ quizzes, user }: AppSidebarProps) {
                   <SidebarMenuItem key={quiz.id}>
                     <SidebarMenuButton
                       asChild
-                      className="h-auto min-h-12 items-start"
                       data-active={pathname === quiz.href}
                     >
                       <Link href={quiz.href}>
-                        <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+                        <span className="flex min-w-0 gap-0.5 text-left justify-between w-full items-center">
                           <span className="truncate">{quiz.title}</span>
-                          <span className="truncate text-xs text-sidebar-foreground/70">
-                            {getQuizStatusCopy(quiz.status)}
-                          </span>
+                          {quiz.status === "generating" && <Spinner />}
+                          {quiz.status === "failed" && (
+                            <CircleAlert className="text-red-400" />
+                          )}
+                          {quiz.status === "queued" && <ListEnd />}
                         </span>
                       </Link>
                     </SidebarMenuButton>

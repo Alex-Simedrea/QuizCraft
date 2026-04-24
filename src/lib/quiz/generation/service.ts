@@ -1,21 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import pdfParse from "@cedrugs/pdf-parse";
 import { and, desc, eq } from "drizzle-orm";
 import mammoth from "mammoth";
 import { Ollama } from "ollama";
-import pdfParse from "@cedrugs/pdf-parse";
 import { z } from "zod";
 
 import { db, sql } from "@/db";
 import { quizGenerationJobs, quizzes } from "@/db/schema";
-import { getQuizEnv } from "@/lib/env";
-import {
-  QUESTION_DIFFICULTIES,
-  QUESTION_TYPES,
-  type QuestionDifficulty,
-  type QuestionType,
-} from "@/lib/quiz-draft";
+import { createQuizOllamaClient } from "@/lib/ollama-client";
+import { QUESTION_DIFFICULTIES, QUESTION_TYPES } from "@/lib/quiz/draft";
 import {
   createEmptyGeneratedSections,
   createQuizDraftSnapshot,
@@ -27,7 +22,7 @@ import {
   type QuizSection,
   type QuizStatus,
   type QuizStoredResource,
-} from "@/lib/quiz-preview";
+} from "@/lib/quiz/preview";
 
 const quizQuestionTypeSchema = z.enum(QUESTION_TYPES);
 const quizDifficultySchema = z.enum(QUESTION_DIFFICULTIES);
@@ -65,6 +60,9 @@ const questionBaseSchema = z.object({
   difficulty: quizDifficultySchema,
   explanation: z.string().min(1),
 });
+const quizTitleSchema = z.object({
+  title: z.string().trim().min(6).max(120),
+});
 
 const singleChoiceQuestionSchema = questionBaseSchema.extend({
   type: z.literal("single-choice"),
@@ -76,10 +74,7 @@ const multipleChoiceQuestionSchema = questionBaseSchema
   .extend({
     type: z.literal("multiple-choice"),
     answers: z.array(z.string().min(1)).length(4),
-    correctAnswerIndices: z
-      .array(z.number().int().min(0).max(3))
-      .min(2)
-      .max(4),
+    correctAnswerIndices: z.array(z.number().int().min(0).max(3)).min(2).max(4),
   })
   .superRefine((value, ctx) => {
     if (
@@ -117,6 +112,99 @@ const generatedQuestionSchema = z.discriminatedUnion("type", [
   shortTextQuestionSchema,
   longTextQuestionSchema,
 ]);
+
+const editableQuestionBaseSchema = questionBaseSchema.extend({
+  id: z.string().uuid(),
+});
+
+const editableSingleChoiceQuestionSchema = editableQuestionBaseSchema.extend({
+  type: z.literal("single-choice"),
+  answers: z.array(z.string().trim().min(1)).length(4),
+  correctAnswerIndex: z.number().int().min(0).max(3),
+});
+
+const editableMultipleChoiceQuestionSchema = editableQuestionBaseSchema
+  .extend({
+    type: z.literal("multiple-choice"),
+    answers: z.array(z.string().trim().min(1)).length(4),
+    correctAnswerIndices: z.array(z.number().int().min(0).max(3)).min(2).max(4),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      new Set(value.correctAnswerIndices).size !==
+      value.correctAnswerIndices.length
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Multiple choice correct answers must be unique.",
+        path: ["correctAnswerIndices"],
+      });
+    }
+  });
+
+const editableTrueFalseQuestionSchema = editableQuestionBaseSchema.extend({
+  type: z.literal("true-false"),
+  correctAnswer: z.boolean(),
+});
+
+const editableShortTextQuestionSchema = editableQuestionBaseSchema.extend({
+  type: z.literal("short-text"),
+  acceptableAnswers: z.array(z.string().trim().min(1)).min(1),
+});
+
+const editableLongTextQuestionSchema = editableQuestionBaseSchema.extend({
+  type: z.literal("long-text"),
+  sampleAnswer: z.string().trim().min(1),
+  rubricPoints: z.array(z.string().trim().min(1)).min(1),
+});
+
+const editableQuestionSchema = z.discriminatedUnion("type", [
+  editableSingleChoiceQuestionSchema,
+  editableMultipleChoiceQuestionSchema,
+  editableTrueFalseQuestionSchema,
+  editableShortTextQuestionSchema,
+  editableLongTextQuestionSchema,
+]);
+
+const editableQuizSectionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  questions: z.array(editableQuestionSchema),
+});
+
+const editableQuizContentSchema = z
+  .object({
+    title: z.string().trim().min(1).max(160),
+    sections: z.array(editableQuizSectionSchema).min(1),
+  })
+  .superRefine((value, ctx) => {
+    const sectionIds = new Set<string>();
+    const questionIds = new Set<string>();
+
+    value.sections.forEach((section, sectionIndex) => {
+      if (sectionIds.has(section.id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Section identifiers must be unique.",
+          path: ["sections", sectionIndex, "id"],
+        });
+      }
+
+      sectionIds.add(section.id);
+
+      section.questions.forEach((question, questionIndex) => {
+        if (questionIds.has(question.id)) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Question identifiers must be unique.",
+            path: ["sections", sectionIndex, "questions", questionIndex, "id"],
+          });
+        }
+
+        questionIds.add(question.id);
+      });
+    });
+  });
 
 type QuizRequest = z.infer<typeof quizRequestSchema>;
 type GeneratedQuestion = z.infer<typeof generatedQuestionSchema>;
@@ -162,9 +250,21 @@ export type CreateQuizDraftResult =
       issues?: string[];
     };
 
+export type UpdateQuizContentResult =
+  | {
+      success: true;
+      quiz: QuizRecord;
+    }
+  | {
+      success: false;
+      message: string;
+      issues?: string[];
+    };
+
 export const QUIZ_GENERATION_CHANNEL = "quiz_generation_jobs";
 export const QUIZ_GENERATION_RECONCILE_INTERVAL_MS = 30_000;
 
+const QUIZ_GENERATION_MODEL = "gemma4:31b-cloud";
 const TEXT_FILE_EXTENSIONS = new Set([".txt", ".md"]);
 const DOCX_FILE_EXTENSIONS = new Set([".docx"]);
 const MAX_GROUP_GENERATION_ATTEMPTS = 3;
@@ -230,7 +330,53 @@ function formatGenerationError(error: unknown) {
   return "Unknown generation error.";
 }
 
-function createQuizTitle(request: QuizRequest) {
+function formatQuizEditIssue(issue: { message: string; path: PropertyKey[] }) {
+  const path = issue.path.join(".");
+
+  if (path === "title") {
+    return "The quiz title is required and must be 160 characters or fewer.";
+  }
+
+  if (path.endsWith(".name")) {
+    return "Every section needs a name.";
+  }
+
+  if (path.endsWith(".prompt")) {
+    return "Every question needs question text.";
+  }
+
+  if (path.endsWith(".explanation")) {
+    return "Every question needs an explanation.";
+  }
+
+  if (path.endsWith(".answers")) {
+    return "Choice questions need exactly 4 non-empty answers.";
+  }
+
+  if (path.endsWith(".correctAnswerIndex")) {
+    return "Single choice questions need one correct answer.";
+  }
+
+  if (path.endsWith(".correctAnswerIndices")) {
+    return "Multiple choice questions need at least two correct answers.";
+  }
+
+  if (path.endsWith(".acceptableAnswers")) {
+    return "Short text questions need at least one accepted answer.";
+  }
+
+  if (path.endsWith(".sampleAnswer")) {
+    return "Long text questions need a sample answer.";
+  }
+
+  if (path.endsWith(".rubricPoints")) {
+    return "Long text questions need at least one rubric point.";
+  }
+
+  return issue.message;
+}
+
+function createFallbackQuizTitle(request: QuizRequest) {
   const firstSectionName = request.sections[0]?.name?.trim();
 
   if (firstSectionName) {
@@ -240,6 +386,15 @@ function createQuizTitle(request: QuizRequest) {
   }
 
   return "Generated quiz";
+}
+
+function normalizeQuizTitle(title: string) {
+  return title
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.!?]+$/g, "")
+    .slice(0, 120);
 }
 
 function getSectionRequirementsText(section: QuizRequest["sections"][number]) {
@@ -509,6 +664,64 @@ function buildQuestionTypeExamples() {
   ].join("\n\n");
 }
 
+function buildQuizTitlePrompt(args: {
+  request: QuizRequest;
+  resources: QuizStoredResource[];
+}) {
+  const { request, resources } = args;
+  const imageResources = resources.filter(
+    (resource) => resource.kind === "image",
+  );
+  const documentResources = resources.filter(
+    (resource) => resource.kind === "document",
+  );
+
+  const documentContext = documentResources.length
+    ? documentResources
+        .map(
+          (resource, index) =>
+            `Document ${index + 1}: ${resource.name}\n${trimExtractedText(resource.extractedText ?? "", 2500)}`,
+        )
+        .join("\n\n")
+    : "No document text provided.";
+  const imageContext = imageResources.length
+    ? imageResources
+        .map((resource, index) => `Image ${index + 1}: ${resource.name}`)
+        .join("\n")
+    : "No images provided.";
+
+  return [
+    "Generate a concise, classroom-ready title for this quiz.",
+    "The title must reflect both the user's prompt and the provided materials.",
+    "Keep it short, specific, and readable in a sidebar.",
+    "Use title case.",
+    "Write the title in the same primary language as the prompt and materials.",
+    "Do not translate into English unless the source content is primarily in English.",
+    "If the prompt and materials are primarily in Romanian, answer in Romanian. Apply the same rule for any other language.",
+    'Do not include generic prefixes or suffixes like "Quiz", "Test", "Worksheet", or "Assessment".',
+    "Do not use quotation marks.",
+    "Aim for roughly 3 to 8 words.",
+    "Good example titles:",
+    "- Romanian Constitutional Law Foundations",
+    "- Human Cell Structure and Function",
+    "- French Revolution Causes and Unrest",
+    "- Photosynthesis and Plant Energy",
+    "- World War II Strategy and Turning Points",
+    "",
+    "User prompt:",
+    request.prompt,
+    "",
+    "Requested sections:",
+    request.sections.map((section) => section.name).join("\n"),
+    "",
+    "Attached images:",
+    imageContext,
+    "",
+    "Extracted document text:",
+    documentContext,
+  ].join("\n");
+}
+
 function buildQuestionGroupPrompt(args: {
   request: QuizRequest;
   resources: QuizStoredResource[];
@@ -517,9 +730,17 @@ function buildQuestionGroupPrompt(args: {
   generatedSections: QuizSection[];
   schema: unknown;
 }) {
-  const { request, resources, sectionName, questionRequest, generatedSections, schema } =
-    args;
-  const imageResources = resources.filter((resource) => resource.kind === "image");
+  const {
+    request,
+    resources,
+    sectionName,
+    questionRequest,
+    generatedSections,
+    schema,
+  } = args;
+  const imageResources = resources.filter(
+    (resource) => resource.kind === "image",
+  );
   const documentResources = resources.filter(
     (resource) => resource.kind === "document",
   );
@@ -561,6 +782,9 @@ function buildQuestionGroupPrompt(args: {
     "Generate quiz questions that strictly follow the requested structure.",
     "Return only valid JSON that matches the provided schema.",
     "Use the provided section order exactly.",
+    "Write all generated content in the same primary language as the prompt and the provided materials.",
+    "Do not default to English unless the source content is primarily in English.",
+    "If the prompt and materials are primarily in Romanian, write the questions, answers, explanations, acceptable answers, sample answers, and rubric points in Romanian. Apply the same rule for any other language.",
     "Treat the requested counts as a strict output inventory, not as loose guidance.",
     "You are not deciding how many questions to generate. The requested count is fixed and mandatory.",
     "Before producing the final JSON, internally verify that this batch contains the exact requested number of question objects.",
@@ -631,6 +855,7 @@ function buildRepairPrompt(args: {
     `Validation error: ${validationError}`,
     `Section: "${sectionName}"`,
     `Required batch: exactly ${questionRequest.count} question object(s) with type="${questionRequest.type}" and difficulty="${questionRequest.difficulty}".`,
+    "Keep the output in the same primary language as the prompt and materials.",
     "Return only valid JSON matching the schema.",
     "Do not repeat previously generated questions.",
     "Do not generate any extra questions.",
@@ -668,7 +893,7 @@ async function generateQuestionGroup(args: {
     {
       role: "system",
       content:
-        "You are generating one quiz question group at a time. You must return exact structured JSON and obey the requested count, type, and difficulty with no extras.",
+        "You are generating one quiz question group at a time. You must return exact structured JSON, obey the requested count, type, and difficulty with no extras, and write in the same primary language as the source content.",
     },
     {
       role: "user",
@@ -736,6 +961,48 @@ async function generateQuestionGroup(args: {
   throw new Error("Question group generation failed unexpectedly.");
 }
 
+async function generateQuizTitle(args: {
+  ollama: Ollama;
+  model: string;
+  request: QuizRequest;
+  resources: QuizStoredResource[];
+  imagePaths: string[];
+}) {
+  const { ollama, model, request, resources, imagePaths } = args;
+  const schema = quizTitleSchema.toJSONSchema();
+  const response = await ollama.chat({
+    model,
+    stream: false,
+    format: schema,
+    options: {
+      temperature: 0,
+    },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You generate short, structured quiz titles that are specific, classroom-ready, and written in the same primary language as the source content.",
+      },
+      {
+        role: "user",
+        content: buildQuizTitlePrompt({
+          request,
+          resources,
+        }),
+        images: imagePaths.length > 0 ? imagePaths : undefined,
+      },
+    ],
+  });
+  const parsed = quizTitleSchema.parse(JSON.parse(response.message.content));
+  const normalizedTitle = normalizeQuizTitle(parsed.title);
+
+  if (normalizedTitle.length < 6) {
+    throw new Error("Generated title was too short.");
+  }
+
+  return normalizedTitle;
+}
+
 function applyGeneratedQuestionsToSections(args: {
   sections: QuizSection[];
   sectionId: string;
@@ -796,6 +1063,62 @@ function toQuizRecord(record: typeof quizzes.$inferSelect): QuizRecord {
     resources: record.resources,
     generatedSections: record.generatedSections,
   };
+}
+
+function createDraftSnapshotFromEditedQuiz(
+  snapshot: QuizDraftSnapshot,
+  sections: QuizSection[],
+): QuizDraftSnapshot {
+  return {
+    ...snapshot,
+    sections: sections.map((section) => ({
+      id: section.id,
+      name: section.name,
+      groups: getEditedQuestionGroups(section.questions),
+    })),
+  };
+}
+
+function getEditedQuestionGroups(questions: QuizQuestion[]) {
+  return questions.reduce<QuizDraftSnapshot["sections"][number]["groups"]>(
+    (groups, question) => {
+      const previousGroup = groups.at(-1);
+
+      if (
+        previousGroup &&
+        previousGroup.type === question.type &&
+        previousGroup.difficulty === question.difficulty
+      ) {
+        previousGroup.count += 1;
+        return groups;
+      }
+
+      groups.push({
+        id: question.id,
+        type: question.type,
+        difficulty: question.difficulty,
+        count: 1,
+      });
+
+      return groups;
+    },
+    [],
+  );
+}
+
+function createQuizRequestFromStoredQuiz(quiz: typeof quizzes.$inferSelect) {
+  return quizRequestSchema.parse({
+    prompt: quiz.prompt,
+    sections: quiz.draftSnapshot.sections.map((section) => ({
+      id: section.id,
+      name: section.name,
+      questions: section.groups,
+    })),
+  });
+}
+
+function shouldGenerateAiQuizTitle(quiz: typeof quizzes.$inferSelect) {
+  return !quiz.titleGenerated;
 }
 
 async function getQuizById(quizId: string) {
@@ -882,7 +1205,10 @@ async function claimNextQuizGenerationJob(workerId: string) {
   return job ?? null;
 }
 
-async function updateQuizGenerationJobHeartbeat(jobId: string, workerId: string) {
+async function updateQuizGenerationJobHeartbeat(
+  jobId: string,
+  workerId: string,
+) {
   await db
     .update(quizGenerationJobs)
     .set({
@@ -947,11 +1273,10 @@ async function runClaimedQuizGenerationJob(
   }, QUIZ_JOB_HEARTBEAT_INTERVAL_MS);
 
   try {
-    const quizEnv = getQuizEnv();
-    const ollama = new Ollama({ host: quizEnv.OLLAMA_HOST });
+    const ollama = createQuizOllamaClient();
 
     while (true) {
-      const currentQuiz = await getQuizById(job.quizId);
+      let currentQuiz = await getQuizById(job.quizId);
 
       if (!currentQuiz) {
         await failQuizGenerationJob(job.id, workerId, "Quiz not found.");
@@ -961,6 +1286,57 @@ async function runClaimedQuizGenerationJob(
           jobId: job.id,
           errorMessage: "Quiz not found.",
         };
+      }
+
+      const request = createQuizRequestFromStoredQuiz(currentQuiz);
+      const imagePaths = currentQuiz.resources
+        .filter((resource) => resource.kind === "image")
+        .map((resource) => resource.path);
+
+      if (shouldGenerateAiQuizTitle(currentQuiz)) {
+        try {
+          const nextTitle = await generateQuizTitle({
+            ollama,
+            model: QUIZ_GENERATION_MODEL,
+            request,
+            resources: currentQuiz.resources,
+            imagePaths,
+          });
+
+          if (nextTitle !== currentQuiz.title) {
+            const [retitledQuiz] = await db
+              .update(quizzes)
+              .set({
+                title: nextTitle,
+                titleGenerated: true,
+                updatedAt: new Date(),
+              })
+              .where(eq(quizzes.id, currentQuiz.id))
+              .returning();
+
+            currentQuiz = retitledQuiz ?? {
+              ...currentQuiz,
+              title: nextTitle,
+              titleGenerated: true,
+            };
+          } else {
+            const [retitledQuiz] = await db
+              .update(quizzes)
+              .set({
+                titleGenerated: true,
+                updatedAt: new Date(),
+              })
+              .where(eq(quizzes.id, currentQuiz.id))
+              .returning();
+
+            currentQuiz = retitledQuiz ?? {
+              ...currentQuiz,
+              titleGenerated: true,
+            };
+          }
+        } catch {
+          // Title generation should not block quiz generation.
+        }
       }
 
       const nextStep = getStoredChunk(
@@ -988,20 +1364,10 @@ async function runClaimedQuizGenerationJob(
         })
         .where(eq(quizzes.id, currentQuiz.id));
 
-      const imagePaths = currentQuiz.resources
-        .filter((resource) => resource.kind === "image")
-        .map((resource) => resource.path);
       const questions = await generateQuestionGroup({
         ollama,
-        model: quizEnv.OLLAMA_MODEL,
-        request: quizRequestSchema.parse({
-          prompt: currentQuiz.prompt,
-          sections: currentQuiz.draftSnapshot.sections.map((section) => ({
-            id: section.id,
-            name: section.name,
-            questions: section.groups,
-          })),
-        }),
+        model: QUIZ_GENERATION_MODEL,
+        request,
         resources: currentQuiz.resources,
         sectionName: nextStep.section.name,
         questionRequest: nextStep.group,
@@ -1063,6 +1429,68 @@ export async function getQuizRecordForUser(quizId: string, userId: string) {
   return quiz ? toQuizRecord(quiz) : null;
 }
 
+export async function updateQuizContentForUser(
+  quizId: string,
+  userId: string,
+  input: unknown,
+): Promise<UpdateQuizContentResult> {
+  const parsed = editableQuizContentSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: "Quiz validation failed.",
+      issues: [...new Set(parsed.error.issues.map(formatQuizEditIssue))],
+    };
+  }
+
+  const existingQuiz = await db.query.quizzes.findFirst({
+    where: and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)),
+  });
+
+  if (!existingQuiz) {
+    return {
+      success: false,
+      message: "Quiz not found.",
+    };
+  }
+
+  if (existingQuiz.status !== "ready") {
+    return {
+      success: false,
+      message: "Only ready quizzes can be edited.",
+    };
+  }
+
+  const nextDraftSnapshot = createDraftSnapshotFromEditedQuiz(
+    existingQuiz.draftSnapshot,
+    parsed.data.sections,
+  );
+
+  const [updatedQuiz] = await db
+    .update(quizzes)
+    .set({
+      title: parsed.data.title,
+      draftSnapshot: nextDraftSnapshot,
+      generatedSections: parsed.data.sections,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)))
+    .returning();
+
+  if (!updatedQuiz) {
+    return {
+      success: false,
+      message: "Quiz not found.",
+    };
+  }
+
+  return {
+    success: true,
+    quiz: toQuizRecord(updatedQuiz),
+  };
+}
+
 export async function createQuizDraftForUser(
   userId: string,
   formData: FormData,
@@ -1084,7 +1512,8 @@ export async function createQuizDraftForUser(
         .insert(quizzes)
         .values({
           userId,
-          title: createQuizTitle(request),
+          title: createFallbackQuizTitle(request),
+          titleGenerated: false,
           prompt: request.prompt,
           status: "queued",
           draftSnapshot,
@@ -1139,7 +1568,10 @@ export async function createQuizDraftForUser(
   }
 }
 
-export async function retryQuizGenerationForUser(quizId: string, userId: string) {
+export async function retryQuizGenerationForUser(
+  quizId: string,
+  userId: string,
+) {
   const existingQuiz = await db.query.quizzes.findFirst({
     where: and(eq(quizzes.id, quizId), eq(quizzes.userId, userId)),
     orderBy: [desc(quizzes.updatedAt)],

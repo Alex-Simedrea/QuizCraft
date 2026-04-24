@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@cedrugs/pdf-parse": "^1.0.0",
+    "@dnd-kit/helpers": "^0.4.0",
+    "@dnd-kit/react": "^0.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",

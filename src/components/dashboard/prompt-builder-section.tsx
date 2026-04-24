@@ -16,8 +16,8 @@ import type {
   QuestionDraft,
   QuestionType,
   SectionDraft,
-} from "@/lib/quiz-draft";
-import { QUESTION_DIFFICULTIES, QUESTION_TYPES } from "@/lib/quiz-draft";
+} from "@/lib/quiz/draft";
+import { QUESTION_DIFFICULTIES, QUESTION_TYPES } from "@/lib/quiz/draft";
 
 type PromptBuilderSectionProps = {
   index: number;
@@ -56,16 +56,14 @@ export function PromptBuilderSection({
   onUpdateQuestion,
 }: PromptBuilderSectionProps) {
   return (
-    <section className="flex flex-col gap-4 rounded-3xl bg-secondary p-3">
+    <section className="flex flex-col gap-1 rounded-3xl bg-background p-3">
       <div className="flex items-end gap-3">
         <Field className="flex-1">
-          <FieldLabel htmlFor={`section-name-${section.id}`}>
-            Section {index + 1}
-          </FieldLabel>
           <Input
             id={`section-name-${section.id}`}
             onChange={(event) => onUpdateSectionName(event.target.value)}
             value={section.name}
+            className="bg-background border border-secondary"
           />
         </Field>
         <Button
@@ -78,9 +76,9 @@ export function PromptBuilderSection({
           <Trash2 />
         </Button>
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col">
         {section.questions.map((question, questionIndex) => (
-          <div key={question.id} className="bg-background p-3 rounded-3xl">
+          <div key={question.id} className="p-3">
             <FieldGroup className="gap-2 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8rem_2rem] md:items-end">
               <Field>
                 <FieldLabel>Type</FieldLabel>
@@ -157,12 +155,7 @@ export function PromptBuilderSection({
           </div>
         ))}
       </div>
-      <Button
-        onClick={onAddQuestion}
-        type="button"
-        variant="secondary"
-        className="bg-background"
-      >
+      <Button onClick={onAddQuestion} type="button" variant="secondary">
         <CopyPlus data-icon="inline-start" />
         Add question group
       </Button>
