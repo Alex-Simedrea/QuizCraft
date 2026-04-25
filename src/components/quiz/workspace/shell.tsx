@@ -14,7 +14,7 @@ export function QuizWorkspaceShell({
   titlePrefix,
 }: QuizWorkspaceShellProps) {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 md:p-8 lg:p-10 lg:pt-12">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 md:p-8 lg:p-10 lg:pt-20">
       <header className="flex flex-row justify-between gap-3 py-4 sm:items-center">
         <div className="flex items-center gap-2">
           {titlePrefix}

@@ -7,6 +7,7 @@ import {
   getGuestAttemptCookieName,
   getGuestQuizAttempt,
   getLatestQuizAttemptForUser,
+  getQuizAttemptDashboardForUser,
   getQuizAttemptForUser,
   getQuizAttemptsForUser,
   getQuizAttemptsMadeByUser,
@@ -35,6 +36,10 @@ export async function getQuizAttemptAction(quizId: string, attemptId: string) {
 
 export async function getMyExternalQuizAttemptsAction() {
   return getQuizAttemptsMadeByUser(await getActionUserId());
+}
+
+export async function getQuizAttemptDashboardAction() {
+  return getQuizAttemptDashboardForUser(await getActionUserId());
 }
 
 export async function submitQuizAttemptAction(quizId: string, input: unknown) {

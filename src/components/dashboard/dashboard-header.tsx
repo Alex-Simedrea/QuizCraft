@@ -10,7 +10,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 const titles: Record<string, string> = {
   "/dashboard": "",
   "/dashboard/profile": "Profile",
-  "/dashboard/settings": "Settings",
 };
 
 export function DashboardHeader() {

@@ -151,6 +151,11 @@ export type QuizAttemptRecord = {
   createdAt: string;
 };
 
+export type QuizAttemptDashboardRecord = QuizAttemptRecord & {
+  solverScope: "you" | "external";
+  attemptScope: "owned-quiz" | "shared-quiz";
+};
+
 export type QuizGenerationChunk = {
   id: string;
   sectionId: string;

@@ -144,6 +144,22 @@ const registerFieldsSchema = z.object({
   confirmPassword: z.string(),
 });
 
+export const profileFormSchema = z
+  .object({
+    firstName: personalNameSchema,
+    lastName: personalNameSchema,
+    email: emailSchema,
+  })
+  .superRefine((value, context) => {
+    if (`${value.firstName} ${value.lastName}`.length > 80) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lastName"],
+        message: "Full name must be 80 characters or fewer.",
+      });
+    }
+  });
+
 export const registerFormSchema = registerFieldsSchema.superRefine(
   (value, context) => {
     if (value.confirmPassword.length === 0) {
@@ -176,3 +192,4 @@ export const loginFormSchema = z.object({
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 export type RegisterRequestValues = z.infer<typeof registerRequestSchema>;
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
+export type ProfileFormValues = z.infer<typeof profileFormSchema>;

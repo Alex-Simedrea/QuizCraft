@@ -142,12 +142,14 @@ export function QuizWorkspace({ initialQuiz }: QuizWorkspaceProps) {
         quizId={quiz.id}
         solveHref={`/quiz/${quiz.id}/solve`}
       />
-      <QuizStructure
-        prompt={quiz.prompt}
-        quizId={quiz.id}
-        resources={quiz.resources}
-        sections={quiz.draftSnapshot.sections}
-      />
+      <div className="pt-8 gap-3 flex flex-col">
+        <QuizStructure
+          prompt={quiz.prompt}
+          quizId={quiz.id}
+          resources={quiz.resources}
+          sections={quiz.draftSnapshot.sections}
+        />
+      </div>
     </QuizWorkspaceShell>
   );
 }

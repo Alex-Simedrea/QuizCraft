@@ -1,6 +1,7 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -13,8 +14,10 @@ import {
 } from "@/lib/auth/session";
 import {
   loginFormSchema,
+  profileFormSchema,
   registerRequestSchema,
   type LoginFormValues,
+  type ProfileFormValues,
   type RegisterRequestValues,
 } from "@/lib/validation/auth";
 
@@ -139,6 +142,65 @@ export async function registerAction(
   return {
     success: true,
     redirectTo: "/dashboard",
+  };
+}
+
+export async function updateProfileAction(
+  input: ProfileFormValues,
+): Promise<AuthApiResponse> {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    return {
+      success: false,
+      message: "You need to sign in again before updating your profile.",
+    };
+  }
+
+  const parsed = profileFormSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: "Please correct the highlighted fields.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existingUser = await db.query.users.findFirst({
+    where: and(
+      eq(users.email, parsed.data.email),
+      ne(users.id, session.user.id),
+    ),
+  });
+
+  if (existingUser) {
+    return {
+      success: false,
+      message: "An account with this email already exists.",
+      fieldErrors: {
+        email: ["An account with this email already exists."],
+      },
+    };
+  }
+
+  await db
+    .update(users)
+    .set({
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName,
+      name: `${parsed.data.firstName} ${parsed.data.lastName}`,
+      email: parsed.data.email,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, session.user.id));
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/profile");
+
+  return {
+    success: true,
+    redirectTo: "/dashboard/profile",
   };
 }
 

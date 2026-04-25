@@ -14,6 +14,7 @@ import {
 } from "@/lib/quiz/attempts/constants";
 import type {
   QuizAttemptAnswerValue,
+  QuizAttemptDashboardRecord,
   QuizAttemptQuestionResult,
   QuizAttemptRecord,
   QuizQuestion,
@@ -428,7 +429,10 @@ export async function getLatestQuizAttemptForUser(
   return toAttemptRecord(attempt);
 }
 
-export async function getQuizAttemptsForUser(quizId: string, userId: string) {
+export async function getQuizAttemptsForUser(
+  quizId: string,
+  userId: string,
+): Promise<QuizAttemptDashboardRecord[]> {
   const [quiz] = await db
     .select({ id: quizzes.id })
     .from(quizzes)
@@ -447,7 +451,11 @@ export async function getQuizAttemptsForUser(quizId: string, userId: string) {
     .where(eq(quizAttempts.quizId, quizId))
     .orderBy(desc(quizAttempts.createdAt));
 
-  return attempts.map((row) => toAttemptRecord(row.attempt, row.userName));
+  return attempts.map((row) => ({
+    ...toAttemptRecord(row.attempt, row.userName),
+    attemptScope: "owned-quiz",
+    solverScope: row.attempt.userId === userId ? "you" : "external",
+  }));
 }
 
 export async function getQuizAttemptForUser(
@@ -530,6 +538,33 @@ export async function getQuizAttemptsMadeByUser(userId: string) {
     .orderBy(desc(quizAttempts.createdAt));
 
   return attempts.map((row) => toAttemptRecord(row.attempt, row.userName));
+}
+
+export async function getQuizAttemptDashboardForUser(
+  userId: string,
+): Promise<QuizAttemptDashboardRecord[]> {
+  const attempts = await db
+    .select({
+      attempt: quizAttempts,
+      quizOwnerId: quizzes.userId,
+      userName: users.name,
+    })
+    .from(quizAttempts)
+    .innerJoin(quizzes, eq(quizzes.id, quizAttempts.quizId))
+    .leftJoin(users, eq(users.id, quizAttempts.userId))
+    .where(
+      or(
+        eq(quizzes.userId, userId),
+        and(eq(quizAttempts.userId, userId), ne(quizzes.userId, userId)),
+      ),
+    )
+    .orderBy(desc(quizAttempts.createdAt));
+
+  return attempts.map((row) => ({
+    ...toAttemptRecord(row.attempt, row.userName),
+    attemptScope: row.quizOwnerId === userId ? "owned-quiz" : "shared-quiz",
+    solverScope: row.attempt.userId === userId ? "you" : "external",
+  }));
 }
 
 async function createQuizAttempt(

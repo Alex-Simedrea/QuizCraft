@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  Check,
-  Clipboard,
-  ClipboardList,
-  Link2,
-  PencilLine,
-  Play,
-} from "lucide-react";
+import { Check, ClipboardList, Copy, PencilLine, Play } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
@@ -21,6 +13,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Surface, SurfaceInset } from "@/components/ui/surface";
+import { Switch } from "@/components/ui/switch";
 import { updateQuizPublicAction } from "@/lib/quiz/generation/actions";
 
 type QuizOverviewActionsProps = {
@@ -92,45 +85,40 @@ export function QuizOverviewActions({
           Attempts
         </Link>
       </Button>
-      <SurfaceInset>
-        <Field orientation="horizontal">
-          <Checkbox
-            checked={isPublic}
-            disabled={isUpdating}
-            onCheckedChange={(value) => updatePublic(value === true)}
-          />
-          <FieldContent>
+      <SurfaceInset className="gap-3 flex flex-col">
+        <Field orientation="horizontal" className="items-center!">
+          <FieldContent className="gap-0">
             <FieldLabel>Public sharing</FieldLabel>
             <FieldDescription>
               Allow anyone with the link to attempt this quiz.
             </FieldDescription>
           </FieldContent>
+          <Switch
+            checked={isPublic}
+            disabled={isUpdating}
+            onCheckedChange={(value) => updatePublic(value === true)}
+          />
         </Field>
-      </SurfaceInset>
-      {isPublic ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <Input readOnly value={shareUrl} />
-            <Button
-              aria-label="Copy share link"
-              onClick={copyShareLink}
-              size="icon"
-              type="button"
-              variant="secondary"
-            >
-              {copied ? <Check /> : <Clipboard />}
-            </Button>
-            <Button asChild size="icon" variant="secondary">
-              <Link aria-label="Open share link" href={shareHref}>
-                <Link2 />
-              </Link>
-            </Button>
+        {isPublic ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input readOnly value={shareUrl} />
+              <Button
+                aria-label="Copy share link"
+                onClick={copyShareLink}
+                size="icon"
+                type="button"
+                variant="secondary"
+              >
+                {copied ? <Check /> : <Copy />}
+              </Button>
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        </div>
-      ) : error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : null}
+        ) : error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : null}
+      </SurfaceInset>
     </Surface>
   );
 }

@@ -6,7 +6,6 @@ import {
   ClipboardList,
   ListEnd,
   Plus,
-  Settings,
   Trash2,
   UserRound,
 } from "lucide-react";
@@ -147,7 +146,7 @@ export function AppSidebar({ quizzes, user }: AppSidebarProps) {
         <SidebarMenuButton asChild data-active={pathname === "/attempts"}>
           <Link href="/attempts">
             <ClipboardList data-icon="inline-start" />
-            My attempts
+            Attempts
           </Link>
         </SidebarMenuButton>
       </SidebarHeader>
@@ -225,12 +224,6 @@ export function AppSidebar({ quizzes, user }: AppSidebarProps) {
                     <Link href="/dashboard/profile">
                       <UserRound />
                       Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/settings">
-                      <Settings />
-                      Settings
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

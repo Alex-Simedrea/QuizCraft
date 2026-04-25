@@ -7,7 +7,7 @@ import { useDashboardHeader } from "@/components/dashboard/dashboard-header-cont
 export function MyAttemptsHeader() {
   const headerConfig = useMemo(
     () => ({
-      title: "My attempts",
+      title: "Attempts",
     }),
     [],
   );
